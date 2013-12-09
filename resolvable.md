@@ -51,82 +51,88 @@
     }
 
 
-/***************************************************************************
-* примеры
-***************************************************************************/
+###Примеры
 
-interface ISecurityUser {}
-class Account extends Eloquent implements ISecurityUser {/*...*/} //класс, зарегистрированные в Auth-конфиге
+Допустим у нас есть модель Account, указанная в конфиге auth.php, которая реализует какой-то ISecurityUser.
 
-App::bind('ISecurityUser', function ()
-{
-    return Auth::user();
-});
+    interface ISecurityUser {}
+    class Account extends Eloquent implements ISecurityUser {/*...*/} 
+    
+И вся эта красота будет у нас находится в IoC.
 
-/***************************************************************************
-* I.	Resolve переданного closure
-***************************************************************************/
+    App::bind('ISecurityUser', function ()
+    {
+        return Auth::user();
+    });
 
-/**
-* наш closure
-*/
-$myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
-{
-    return [$passedParameter, $injectedUser];
-};
 
-$resolver = new Resolver();
-$result = $resolver->closure($myCallback, [5]); //передаём closure и предопределённый массив параметров
-var_dump($result); // на выходе наш подставленный $passedParameter и инъектированный юзер
+### I.	Resolve переданного closure
 
-/***************************************************************************
-* II.	Создание resolvable closure
-***************************************************************************/
 
-/**
-* наш closure
-*/
-$myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
-{
-    return [$passedParameter, $injectedUser];
-};
-
-$resolver = new Resolver();
-$callback = $resolver->makeClosure($myCallback); //передаём closure
-var_dump($callback); // види closure
-$result = $callback(5); //передаём в closure параметр 5
-var_dump($result); // на выходе наш подставленный $passedParameter и инъектированный юзер
-
-/***************************************************************************
-* III.	Resolve метода
-***************************************************************************/
-
-class SomeClass
-{
-    public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+    /**
+    * наш closure
+    */
+    $myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
     {
         return [$passedParameter, $injectedUser];
-    }
-}
+    };
 
-$resolver = new Resolver();
-$result = $resolver->method('SomeClass', 'someMethod', [5]); //или $resolver->method(new SomeClass, 'someMethod', [5]) или $resolver->method($someClass, 'someMethod', [5])
-var_dump($result); // на выходе наш подставленный $passedParameter и инъектированный юзер
+    $resolver = new Resolver();
+    $result = $resolver->closure($myCallback, [5]); //передаём closure и предопределённый массив параметров
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
 
-/***************************************************************************
-* IV.	Превращение метода в Resolvable closure
-***************************************************************************/
 
-class SomeClass
-{
-    public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+### II.	Создание resolvable closure
+
+
+    /**
+    * наш closure
+    */
+    $myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
     {
         return [$passedParameter, $injectedUser];
-    }
-}
+    };
+    
+    $resolver = new Resolver();
+    $callback = $resolver->makeClosure($myCallback); //передаём closure
+    var_dump($callback); // види closure
+    $result = $callback(5); //передаём в closure параметр 5
+    var_dump($result);  // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
 
-$resolver = new Resolver();
-$callback = $resolver->methodToClosure('SomeClass', 'someMethod'); //или $resolver->method(new SomeClass, 'someMethod') или $resolver->method($someClass, 'someMethod')
-var_dump($callback); // closure
-$result = $callback(5);
-var_dump($result); // на выходе наш подставленный $passedParameter и инъектированный юзер
+
+### III.	Resolve метода
+
+
+    class SomeClass
+    {
+        public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+        {
+            return [$passedParameter, $injectedUser];
+        }
+    }
+    
+    $resolver = new Resolver();
+    $result = $resolver->method('SomeClass', 'someMethod', [5]); 
+        // или $resolver->method(new SomeClass, 'someMethod', [5]) 
+        // или $resolver->method($someClass, 'someMethod', [5])
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
+
+
+###IV.	Превращение метода в Resolvable closure
+
+
+    class SomeClass
+    {
+        public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+        {
+            return [$passedParameter, $injectedUser];
+        }
+    }
+    
+    $resolver = new Resolver();
+    $callback = $resolver->methodToClosure('SomeClass', 'someMethod'); 
+        // или $resolver->method(new SomeClass, 'someMethod') 
+        // или $resolver->method($someClass, 'someMethod')
+    var_dump($callback); // closure
+    $result = $callback(5);
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
