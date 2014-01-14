@@ -31,7 +31,7 @@
         $failed = Redirect::to(URL::current())->withInput();
         
         if (!$model->isValid()) {
-            return $failed->withErrors($model->getValidations());
+            return $failed->withErrors($model->getValidator());
         }
         
         if (!$this->strategy->create($model->toModel())) {
@@ -42,3 +42,21 @@
     }
 
 Во-первых, как вы видите - хочетелось бы магической инъекции ViewModel и сборка её свойств на лету. Во-вторых выше вы можете наблюдать полноценную контекстно-ориентированную модель никак не связанную со слоем транспорта данных. То есть мы получаем полноценный профит.
+
+##Реализация
+
+Для начала, было бы неплохо описать интерфейс IViewModel. Мне очень нравиться так же использование интерфесами ArrayableInterface и JsonableInterface, поэтому мы обяжем наш IViewModel их реализовывать. 
+
+    namespace Application\Abstracts\Interfaces;
+    
+    use Illuminate\Support\Contracts\ArrayableInterface;
+    use Illuminate\Support\Contracts\JsonableInterface;
+
+    interface IViewModel implements ArrayableInterface, JsonableInterface
+    {
+        public function getBaseModel($attributes = [], $isNew = true);
+        public function getValidator();
+        public function getValidationObject($input, $isNew = true);
+        public function isValid($isNew = true);
+        public function toModel($isNew = true);
+    }
