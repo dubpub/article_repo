@@ -54,7 +54,10 @@
         у нашей модели должна быть возможность привести себя к базовой Eloquent-сущности. За эту возможность будет отвечать toModel();
     </li>
     <li>
-        так как наша ViewModel будет ориентирована на контекстное использование и будет отвечать за входящие данные - было бы неплохо добавить метод isValid($isNew = true). При валидации ;
+        так как наша ViewModel будет ориентирована на контекстное использование и будет отвечать за входящие данные - было бы неплохо добавить метод isValid($isNew = true). Параметр $isNew будет необязательным, но создаст возможность в  контексте сказать, что валидируемая модель не новая и использовать другие правила;
+    </li>
+    <li>
+        у нашей модели должен быть метод fill($attributes = array()) - для удобства заполнения модели. 
     </li>
 </ul>
 
@@ -65,9 +68,7 @@
 
     interface IViewModel implements ArrayableInterface, JsonableInterface
     {
-        public function getBaseModel($attributes = [], $isNew = true);
-        public function getValidationObject($input, $isNew = true);
-        public function getValidator();
+        public function fill($attributes = array());
         public function isValid($isNew = true);
-        public function toModel($isNew = true);
+        public function toModel();
     }
