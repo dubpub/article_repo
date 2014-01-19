@@ -51,13 +51,13 @@
 
 <ul>
     <li>
-        у нашей модели должна быть возможность привести себя к базовой Eloquent-сущности. За эту возможность будет отвечать toModel();
+        у нашей модели должна быть возможность привести себя к базовой Eloquent-сущности. За эту возможность будет отвечать <code>toModel()</code>;
     </li>
     <li>
-        так как наша ViewModel будет ориентирована на контекстное использование и будет отвечать за входящие данные - было бы неплохо добавить метод isValid($isNew = true). Параметр $isNew будет необязательным, но создаст возможность в  контексте сказать, что валидируемая модель не новая и использовать другие правила;
+        так как наша ViewModel будет ориентирована на контекстное использование и будет отвечать за входящие данные - было бы неплохо добавить метод <code>isValid($isNew = true)</code>. Параметр <code>$isNew</code> будет необязательным, но создаст возможность в  контексте сказать, что валидируемая модель не новая и использовать другие правила;
     </li>
     <li>
-        у нашей модели должен быть метод fill($attributes = array()) - для удобства заполнения модели. 
+        у нашей модели должен быть метод <code>fill($attributes = array())</code> - для удобства заполнения модели. 
     </li>
 </ul>
 
@@ -70,7 +70,7 @@
     {
         public function fill($attributes = array());
         public function isValid($isNew = true);
-        public function toModel();
+        public function toModel($isNew = true);
     }
 
 Для приёма и обработки файлов можно будет сделать отдельный интерфейс IFileViewModel, который будет содержать метод только save() и реализовывать IViewModel:
@@ -92,16 +92,51 @@
     
     abstract class ViewModel implements IViewModel
     {
-        protected $_validator;
+        protected $_validator = null;
+        protected $attributes = array();
         
         abstract protected function getBaseModel($attributes = array(), $isNew = true);
         abstract protected function getValidationObject($input, $isNew = true);
 
+        protected function extractAttributes()
+        {
+            if (!count($this->attributes)) {
+                $reflection = new ReflectionClass($this);
+    
+                foreach($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property)
+                {
+                    $this->attributes[] = $property->name;
+                }
+            }
+            
+            return $this->attributes;
+        }
+        
+        protected function extractValidatior($isNew = true)
+        {
+            if (is_null($this->_validator)) {
+                $this->_validator = $this->getValidationObject($this->toArray(), $isNew);
+            }
+            
+            return $this->_validator;
+        }
+
         public function toModel($isNew = true)
         {
-            $model = $this->getBaseModel($this->toArray());
-            $model->exists = !$isNew;
+            $model = $this->getBaseModel($this->toArray(), $isNew);
             return $model;
+        }
+
+        public function toArray()
+        {
+            $array = array();
+
+            foreach($this->extractAttributes() as $attribute)
+            {
+                $array[$attribute] = $this->{$attribute};
+            }
+
+            return $array;
         }
 
         public function toJson($options = 0)
@@ -109,28 +144,49 @@
             return json_encode($this->toArray(), $options);
         }
 
-        public function toArray()
-        {
-            $array = array();
-
-            $reflection = new ReflectionClass($this);
-
-            foreach($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property)
-            {
-                $array[$property->name] = $this->{$property->name};
-            }
-
-            return $array;
-        }
-
         public function isValid($isNew = true)
         {
-            $this->_validator = $this->getValidationObject($this->toArray(), $isNew);
-            return $this->_validator->passes();
+            return !$this->extractValidator($isNew)->fails();
+        }
+        
+        public function fill($attributes = array()) {
+            foreach($this->extractAttributes() as $key) {
+                if (isset($attributes[$key])) { 
+                    $this->{$key} = $attributes[$key];
+                }
+            }
         }
 
-        public function getValidator()
+        public function getValidator($isNew = true)
         {
-            return $this->_validator;
+            return $this->extractValidator($isNew);
         }
     }
+
+Пройдёмся в кратце по первой части вышеизложенного механизма.
+
+<ul>
+    <li>
+        Защищённый метод <code>extractAttributes()</code> будет извлекать из нашей модели public свойства ViewModel, так как подозреается, что они и есть наши аттрибуты;
+    </li>
+    <li>
+        Метод <code>toModel($isNew = true)</code> будет вызывать абстрактный метод <code>getBaseModel($attributes = array(), $isNew = true)</code>, передавая в него текущие значения модели в виде ассоциативного массива и флаг, показывающий на то новали модель, или нет;
+    </li>
+    <li>
+        Метод <code>toArray()</code> будет реализацией метода из ArrayableInterface. Он будет возвращать ассоциативный массив свойств-значений извлекая ключи модели из метода <code>extractAttributes()</code> и сохраняя их для избежания повторного вызова метода. 
+    </li>
+    <li>
+        Метод <code>toJson($options = 0)</code> будет реализацией метода из JsonableInterface. Он будет приводить результат метода toArray() в json-объект. 
+    </li>
+</ul>
+
+Теперь посмотрим на часть, отвечающую за валидацию:
+
+<ul>
+    <li>
+        Защищённый метод <code>extractValidatior($isNew = true)</code> будет вызывать абстрактный метод <code>getValidationObject($attributes = array(), $isNew = true)</code>, передавая в него текущие значения модели в виде ассоциативного массива и флаг, показывающий на то новали модель, или нет и моментально сохранять результат. Предполагается, что результатом метода getValidationObject() будет объект вализации из компонентов Illuminate, чтобы в дальнейшем в случае невалидности нашей модели можно было бы вернуть MessageBag;
+    </li>
+    <li>
+        
+    </li>
+</ul>
