@@ -243,4 +243,60 @@
 
 С появлением Reflection Api php преобразился, но в силу того, что php относится к duck-typing языкам, видимо поэтому разработчики решили не добавлять методы по извлечению типов аргументов, которые ждёт метод, или функция, поэтому наш Resolver должен уметь извлекать типы аргументов.
 
-
+    namespace Application\Utils\Resolver;
+    
+    use ReflectionMethod;
+    use ReflectionFunction;
+    
+    class Resolver
+    {
+        protected function resolve($reflectionParams, $params = [])
+        {
+            for($i = 0; $i < count($reflectionParams); $i++)
+            {
+                $exp = '/\[\s\<\w+?>\s([\w\\\\]+)/s';
+                $match = preg_match($exp, $reflectionParams[$i]->__toString(), $matches);
+    
+                if (isset($params[$i])) continue;
+    
+                if (isset($matches[1]) && !$reflectionParams[$i]->isArray() && is_string($matches[1]) && (class_exists($matches[1]) || \App::bound($matches[1])))
+                {
+                    $params[$i] = \App ::make($matches[1]);
+                }
+    
+            }
+    
+            return $params;
+        }
+    
+        public function method($class, $method, $params = [])
+        {
+            $reflection = new ReflectionMethod($class, $method);
+            $resolved = self::resolve($reflection->getParameters(), $params);
+            return call_user_func_array([$class, $method], $resolved);
+        }
+    
+        public function methodToClosure($class, $method)
+        {
+            return function () use ($class, $method)
+            {
+                return $this->method($class, $method, func_get_args());
+            };
+        }
+    
+        public function closure(Closure $closure, $params = [])
+        {
+            $reflection = new \ReflectionFunction($closure);
+            $resolved = self::resolve($reflection->getParameters(), $params);
+            return call_user_func_array($closure, $resolved);
+        }
+    
+        public function makeClosure(Closure $closure)
+        {
+            return function () use ($closure)
+            {
+                return $this->closure($closure, func_get_args());
+            };
+        }
+    }
+    
