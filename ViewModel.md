@@ -43,9 +43,11 @@
 
 Во-первых, как вы видите - хочетелось бы магической инъекции ViewModel и сборка её свойств на лету. Во-вторых выше вы можете наблюдать полноценную контекстно-ориентированную модель никак не связанную со слоем транспорта данных. То есть мы получаем полноценный профит.
 
-##Реализация
+##Реализация.
 
 Для начала, было бы неплохо разбить задачу на несколько частей - нам понядобяться интерфейс ViewModel, его частичная абстрактная реализация, некий Resolver, которй бы справлялся с инъекцией моделей в методы, ну и прослойка, отвечающая за наполнение свойствами ViewModel, реализация которых имеет место быть во множественных вариациях.
+
+###ViewModel.
 
 Перед тем как преступить в ViewModel, было бы неплохо описать интерфейс IViewModel, потому что у наши вариации ViewModel могут базироваться в зависимости от целей, поэтому планирование минимального интерфейса просто необходимо. Мне очень нравиться так же использование интерфесоф ArrayableInterface и JsonableInterface, поэтому мы обяжем наш IViewModel их реализовывать. Помимо было бы неплохо реализовать следующие возможности: 
 
@@ -239,6 +241,9 @@
 
 Написания одной ViewModel маловато для того, чтобы она прилетала в метод контроллера, поэтому сейчас я покажу вам как реализовать инъекцию не прибегая к route binding, указанному в документации.
 
+
+###Resolver
+
 Мне не нравится как в Laravel устроен model binding - слишком много придётся описывать для большого колличества моделей в проекте, поэтому хотелось бы обзавестись механизмом как в ASP.NET MVC - просто указывать класс в методе и принимать модель без излишних описаний в роутере, который и подавно не должена знать, ничего о слое данных. Так же хотелось бы исправить большой недостаток IoC-контейнера Laravel - обзавестись механизмом разрешения зависимостей не только в конструкторах классов, но и в методах и даже в closure. Это решение мы назовём Resolver.
 
 С появлением Reflection Api php преобразился, но в силу того, что php относится к duck-typing языкам, видимо поэтому разработчики решили не добавлять методы по извлечению типов аргументов, которые ждёт метод, или функция, поэтому наш Resolver должен уметь извлекать типы аргументов.
@@ -250,7 +255,7 @@
     
     class Resolver
     {
-        protected function resolve($reflectionParams, $params = [])
+        protected function resolve($reflectionParams, $params = array())
         {
             for($i = 0; $i < count($reflectionParams); $i++)
             {
@@ -269,7 +274,7 @@
             return $params;
         }
     
-        public function method($class, $method, $params = [])
+        public function method($class, $method, $params = array())
         {
             $reflection = new ReflectionMethod($class, $method);
             $resolved = self::resolve($reflection->getParameters(), $params);
@@ -284,7 +289,7 @@
             };
         }
     
-        public function closure(Closure $closure, $params = [])
+        public function closure(Closure $closure, $params = array())
         {
             $reflection = new \ReflectionFunction($closure);
             $resolved = self::resolve($reflection->getParameters(), $params);
@@ -300,3 +305,88 @@
         }
     }
     
+####Примеры
+
+Допустим у нас есть модель Account, указанная в конфиге auth.php, которая реализует какой-то ISecurityUser.
+
+    interface ISecurityUser {}
+    class Account extends Eloquent implements ISecurityUser {/*...*/} 
+    
+И вся эта красота будет у нас находится в IoC.
+
+    App::bind('ISecurityUser', function ()
+    {
+        return Auth::user();
+    });
+
+
+##### I.	Resolve переданного closure
+
+
+    /**
+    * наш closure
+    */
+    $myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
+    {
+        return [$passedParameter, $injectedUser];
+    };
+
+    $resolver = new Resolver();
+    $result = $resolver->closure($myCallback, [5]); //передаём closure и предопределённый массив параметров
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
+
+
+##### II.	Создание resolvable closure
+
+
+    /**
+    * наш closure
+    */
+    $myCallback = function ($passedParameter, ISecurityUser $injectedUser = null)
+    {
+        return [$passedParameter, $injectedUser];
+    };
+    
+    $resolver = new Resolver();
+    $callback = $resolver->makeClosure($myCallback); //передаём closure
+    var_dump($callback); // види closure
+    $result = $callback(5); //передаём в closure параметр 5
+    var_dump($result);  // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
+
+
+##### III.	Resolve метода
+
+
+    class SomeClass
+    {
+        public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+        {
+            return [$passedParameter, $injectedUser];
+        }
+    }
+    
+    $resolver = new Resolver();
+    $result = $resolver->method('SomeClass', 'someMethod', [5]); 
+        // или $resolver->method(new SomeClass, 'someMethod', [5]) 
+        // или $resolver->method($someClass, 'someMethod', [5])
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
+
+
+##### IV.	Превращение метода в Resolvable closure
+
+
+    class SomeClass
+    {
+        public function someMethod($passedParameter, ISecurityUser $injectedUser = null)
+        {
+            return [$passedParameter, $injectedUser];
+        }
+    }
+    
+    $resolver = new Resolver();
+    $callback = $resolver->methodToClosure('SomeClass', 'someMethod'); 
+        // или $resolver->method(new SomeClass, 'someMethod') 
+        // или $resolver->method($someClass, 'someMethod')
+    var_dump($callback); // closure
+    $result = $callback(5);
+    var_dump($result); // на выходе наш массив из подставленного $passedParameter и инъектированного ISecutiryUser
