@@ -45,9 +45,20 @@
 
 ##Реализация
 
-Для начала, было бы неплохо описать интерфейс IViewModel. Мне очень нравиться так же использование интерфесами ArrayableInterface и JsonableInterface, поэтому мы обяжем наш IViewModel их реализовывать. 
+Для начала, было бы неплохо разбить задачу на несколько частей - нам понядобяться интерфейс ViewModel, его частичная абстрактная реализация, некий Resolver, которй бы справлялся с инъекцией моделей в методы, ну и прослойка, отвечающая за наполнение свойствами ViewModel, реализация которых имеет место быть во множественных вариациях.
 
-    namespace Application\Abstracts\Interfaces;
+Перед тем как преступить в ViewModel, было бы неплохо описать интерфейс IViewModel, потому что у наши вариации ViewModel могут базироваться в зависимости от целей, поэтому планирование минимального интерфейса просто необходимо. Мне очень нравиться так же использование интерфесоф ArrayableInterface и JsonableInterface, поэтому мы обяжем наш IViewModel их реализовывать. Помимо было бы неплохо реализовать следующие возможности: 
+
+<ul>
+    <li>
+        у нашей модели должна быть возможность привести себя к базовой Eloquent-сущности. За эту возможность будет отвечать toModel();
+    </li>
+    <li>
+        так как наша ViewModel будет ориентирована на контекстное использование и будет отвечать за входящие данные - было бы неплохо добавить метод isValid($isNew = true). При валидации ;
+    </li>
+</ul>
+
+    namespace Application\Utils\ViewModel\Interfaces;
     
     use Illuminate\Support\Contracts\ArrayableInterface;
     use Illuminate\Support\Contracts\JsonableInterface;
@@ -55,8 +66,8 @@
     interface IViewModel implements ArrayableInterface, JsonableInterface
     {
         public function getBaseModel($attributes = [], $isNew = true);
-        public function getValidator();
         public function getValidationObject($input, $isNew = true);
+        public function getValidator();
         public function isValid($isNew = true);
         public function toModel($isNew = true);
     }
