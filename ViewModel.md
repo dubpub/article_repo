@@ -72,3 +72,15 @@
         public function isValid($isNew = true);
         public function toModel();
     }
+
+Для приёма файлов можно будет сделать отдельный интерфейс IFileViewModel, который будет содержать метод только save() и реализовывать IViewModel:
+
+    namespace Application\Utils\ViewModel\Interfaces;
+    
+    use Illuminate\Support\Contracts\ArrayableInterface;
+    use Illuminate\Support\Contracts\JsonableInterface;
+
+    interface IFileViewModel implements IViewModel
+    {
+        public function save();
+    }
