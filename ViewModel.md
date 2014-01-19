@@ -73,14 +73,64 @@
         public function toModel();
     }
 
-Для приёма файлов можно будет сделать отдельный интерфейс IFileViewModel, который будет содержать метод только save() и реализовывать IViewModel:
+Для приёма и обработки файлов можно будет сделать отдельный интерфейс IFileViewModel, который будет содержать метод только save() и реализовывать IViewModel:
 
     namespace Application\Utils\ViewModel\Interfaces;
-    
-    use Illuminate\Support\Contracts\ArrayableInterface;
-    use Illuminate\Support\Contracts\JsonableInterface;
 
     interface IFileViewModel implements IViewModel
     {
         public function save();
+    }
+
+Итак план составлен - займёмся абстракцией нашей ViewModel и подготовим часть механизма, необходимого для работы нашей затеи. 
+
+    namespace Application\Utils\ViewModel;
+    
+    use Application\Utils\ViewModel\Interfaces\IViewModel;
+    use ReflectionClass,
+        ReflectionProperty;
+    
+    abstract class ViewModel implements IViewModel
+    {
+        protected $_validator;
+        
+        abstract protected function getBaseModel($attributes = array(), $isNew = true);
+        abstract protected function getValidationObject($input, $isNew = true);
+
+        public function toModel($isNew = true)
+        {
+            $model = $this->getBaseModel($this->toArray());
+            $model->exists = !$isNew;
+            return $model;
+        }
+
+        public function toJson($options = 0)
+        {
+            return json_encode($this->toArray(), $options);
+        }
+
+        public function toArray()
+        {
+            $array = array();
+
+            $reflection = new ReflectionClass($this);
+
+            foreach($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property)
+            {
+                $array[$property->name] = $this->{$property->name};
+            }
+
+            return $array;
+        }
+
+        public function isValid($isNew = true)
+        {
+            $this->_validator = $this->getValidationObject($this->toArray(), $isNew);
+            return $this->_validator->passes();
+        }
+
+        public function getValidator()
+        {
+            return $this->_validator;
+        }
     }
