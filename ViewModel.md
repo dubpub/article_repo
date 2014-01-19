@@ -187,6 +187,56 @@
         Защищённый метод <code>extractValidatior($isNew = true)</code> будет вызывать абстрактный метод <code>getValidationObject($attributes = array(), $isNew = true)</code>, передавая в него текущие значения модели в виде ассоциативного массива и флаг, показывающий на то новали модель, или нет и моментально сохранять результат. Предполагается, что результатом метода getValidationObject() будет объект вализации из компонентов Illuminate, чтобы в дальнейшем в случае невалидности нашей модели можно было бы вернуть MessageBag;
     </li>
     <li>
-        
+        Метод <code>isValid($isNew)</code> извлекать собранный образец объекта валидации и возращать t/f значения в зависимости от вализности объекта;
+    </li>
+    <li>
+        Метод <code>getValidator()</code> будет работать как публичный getter для получения объекта валидации.
     </li>
 </ul>
+
+Во что же у нас вытекает этот код и с чем его едят? Давайте посмотрим как будет выглядеть ViewModel для сущности Post:
+    
+    namespace Data\ViewModels;
+    
+    use Application\DAL\Eloquent\Post;
+    use Application\Utils\ViewModel\Interfaces\IViewModel;
+    use Application\Utils\ViewModel\ViewModel;
+    
+    class PostViewModel extends ViewModel implements IViewModel
+    {
+        public $name;
+        public $description;
+        public $content;
+        
+        protected $validationService;
+        
+        public function __construct(IValidationService $validationService)
+        {
+            $this->validationService = $validationService;
+        }
+        
+        protected function getBaseModel($attributes = array(), $isNew = true)
+        {
+            $model = new Post($attributes);
+            $model->exists = !$isNew;
+            return $model;
+        }
+        
+        protected function getValidationObject($input = array(), $isNew = true)
+        {
+            $validation = $this->validationService->post($input);
+            
+            //if ($isNew) {
+                //$validation->sometimes(...);
+            //}
+            
+            return $validation;
+        }
+    }
+
+Как вы видите в этом классе уютно помещается контекстная валидация. Если кто ещё не понял, то класс Post, возвращаемый из метода <code>getBaseModel</code> это образец или наследник модели eloquent. 
+Как вы могли заметить я использовал в конструкции интерфейс <code>IValidationService</code>, который будет прилетать к нам из IoC-контейнера, что плавно переносит нас ко второй части реализации нашего механизма.
+
+Написания одной ViewModel маловато для того, чтобы она прилетала в метод контроллера, поэтому сейчас я покажу вам как реализовать инъекцию не прибегая к route binding, указанному в документации.
+
+Мне не нравится как в Laravel устроен model binding - слишком много придётся описывать для большого колличества моделей в проекте, поэтому хотелось бы обзавестись механизмом как в ASP.NET MVC - просто указывать класс в методе и принимать модель без излишних описаний в роутере. Так же хотелось бы исправить большой недостаток IoC-контейнера Laravel - обзавестись механизмом разрешения зависимостей не только в конструкторах классов, но и в методах и даже в closure, который мы назовём Resolver.
