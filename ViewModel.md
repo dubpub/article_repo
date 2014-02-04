@@ -2,7 +2,7 @@
 
 ##Цель.
 --
-Итак, нашей целью является написать гибкий контроллер, который поддерживал бы расширяемые аннотации и занимался бы ресолвингом вью-моделей на лету. И начнём мы с последнего - поговорим о подводных камнях laravel - о моделях.
+Итак, нашей целью является написать слой агрегации данных, гибкий контроллер, который поддерживал бы расширяемые аннотации и занимался бы ресолвингом вью-моделей на лету. И начнём мы с последнего - поговорим о подводных камнях laravel - о моделях и агрегации данных.
 
 Что для нас модели в Laravel? Документация нас сразу отправляет смотреть, грызть и читать про Eloquent. Там мы видим как всё красиво - Хочешь связи? Объяви метод! Хочешь ограничить результат "видимости" запроса? Объяви метод! хочешь контсруктор запросов? без проблемм - он всё там же. И в итоге дочитав доконца о магии, которую предоставляет нам  Eloquent в колову приходит одна пугаящая мысль - всё прекрасно и легко, не будь это ActiveRecord. Я знаю, что многие разработчики считают, что, ActiveRecord это априори антипаттерн, но это с какой стороны посмотреть. Все прекрасно понимают, что любой паттерн можно запросто превратить в антипаттерн при неправильном его использовании, и посмотрев у различных людей примеры кода с Eloquent это убеждение подтверждается. 
 
@@ -61,8 +61,40 @@ IDataRepository:
     interface IDataRepository extends IDataTransport
     {
         public function create($data);
-        public function update($model);
-        public function updateId($id, $data = array());
+        public function update($id, $data = array());
+    }
+
+Сразу напишем абстрактную реализацию, пригодную для Eloquent:
+
+    namespace Application\System\DAL\Abstracts;
+    
+    use Application\System\DAL\Interfaces\IDataRepository;
+    
+    abstract class AEloquentRepository implements IDataRepository
+    {
+        abstract public function getBaseModel();
+        
+        protected function store($model, $data)
+        {
+            $model->fill($data);
+            return $model->save();
+        }
+        
+        public function getQueryable()
+        {
+            return $this->getBaseModel()->newQuery();
+        }
+        
+        public function create($data)
+        {
+            return $this->store($this->getBaseModel(), $data);
+        }
+        
+        public function update($id, $data)
+        {
+            $model = $this->getQueryable()->where('id', $id)->firstOrFail();
+            return $this->store($model, $data);
+        }
     }
 
 IDataService:
@@ -75,7 +107,34 @@ IDataService:
         public function top($amount = 10);
     }
     
+
+И так же напишем абстрактную реализацию, пригодную для Eloquent:
+
+    namespace Application\System\DAL\Abstracts;
     
+    use Application\System\DAL\Interfaces\IDataService;
+    
+    abstract class AEloquentServeice implements IDataServeice
+    {
+        abstract public function getBaseModel();
+        
+        public function getQueryable()
+        {
+            return $this->getBaseModel()->newQuery();
+        }
+        
+        public function find($id)
+        {
+            return $this->getQueryable()->where('id', $id)->get();
+        }
+        
+        public function top($amount = 10)
+        {
+            return $this->getQueryable()->take($amount)->get();
+        }
+    }
+
+
     
 --
 
