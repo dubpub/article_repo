@@ -120,7 +120,7 @@
     
     use Application\System\DAL\Interfaces\IDataService;
     
-    abstract class AEloquentServeice implements IDataServeice
+    abstract class AEloquentService implements IDataService
     {
         abstract public function getBaseModel();
         
@@ -142,8 +142,21 @@
 
 Предпологается, что наследники AEloquentService и AEloquentRepository будут возвращаять экземпляр Eloquent-модели из метода getBaseModal(). Если у кого-то возник вопрос почему я разделил слой чтения от слоя записи, отвечу просто - "разделяй и властвуй". Встречный вопрос: а зачем вам объединять? Ваш контроллер может опросить сервис, но не записать в репозиторий. Сохранение одной модели может проходить через разные контроллеры и алгоритм этой процедуры вполне однообразен. Следовательно воизбежание дублирования лучше написать посредника, которая чаще всего реализуется простым паттерном стратегия в котором контекстом будет ваш контроллер. Итого: сервисы и стратегии мы инъектируем в контроллер, а репозитории в стратегии.
 
+Теперь возьмём для примера сущность Post - она отражает простой пост для блога. У ней есть title, description, content и account_id.
 
+    namespace Application\DAL\Eloquent;
     
+    use Illuminate\Database\Eloquent\Model;
+    
+    class Post extends Model
+    {
+        public $table = 'post';
+
+        public $fillable = array('id', 'title', 'description', 'content');
+        
+    }
+    
+
 --
 
 #oldtext
