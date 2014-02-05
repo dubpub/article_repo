@@ -144,7 +144,7 @@
 
 Теперь возьмём для примера сущность Post - она отражает простой пост для блога. У ней есть title, description, content и account_id.
 
-    namespace Application\DAL\Eloquent;
+    namespace Application\DAL\Eloquent\Models;
     
     use Illuminate\Database\Eloquent\Model;
     
